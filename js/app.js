@@ -1,0 +1,51 @@
+// app.js — Router + Bootstrap. Hash-basiertes Routing, damit die App ohne
+// Server-Konfiguration (auch als Datei) funktioniert.
+
+import { subscribe } from "./store.js";
+import { clear } from "./ui.js";
+import { renderTrips } from "./views/trips.js";
+import { renderTrip } from "./views/trip.js";
+import { renderPerson } from "./views/person.js";
+import { renderSettings } from "./views/settings.js";
+
+const root = document.getElementById("app");
+let currentKey = null;
+
+function parseRoute() {
+  const hash = location.hash.replace(/^#/, "");
+  const parts = hash.split("/").filter(Boolean); // "/trip/x" -> ["trip","x"]
+  if (parts[0] === "trip" && parts[1]) return { name: "trip", id: parts[1] };
+  if (parts[0] === "person" && parts[1]) return { name: "person", id: parts[1] };
+  if (parts[0] === "settings") return { name: "settings", id: null };
+  return { name: "trips", id: null };
+}
+
+function viewFor(route) {
+  switch (route.name) {
+    case "trip": return renderTrip(route.id);
+    case "person": return renderPerson(route.id);
+    case "settings": return renderSettings();
+    default: return renderTrips();
+  }
+}
+
+function render() {
+  const route = parseRoute();
+  clear(root);
+  root.append(viewFor(route));
+  const key = route.name + (route.id || "");
+  if (key !== currentKey) {
+    window.scrollTo(0, 0);
+    currentKey = key;
+  }
+}
+
+window.addEventListener("hashchange", render);
+subscribe(render); // bei jeder Datenänderung neu zeichnen
+render();
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  });
+}
