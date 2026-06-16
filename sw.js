@@ -1,7 +1,7 @@
 // sw.js — einfacher Offline-Cache (App-Shell). Statische Dateien werden
 // gecacht; bei Updates die Versionsnummer erhöhen.
 
-const CACHE = "aldi-app-v1";
+const CACHE = "saldo-app-v1";
 const ASSETS = [
   "./",
   "./index.html",
@@ -12,7 +12,9 @@ const ASSETS = [
   "./js/algorithm.js",
   "./js/format.js",
   "./js/ui.js",
-  "./js/views/trips.js",
+  "./js/views/overview.js",
+  "./js/views/entry.js",
+  "./js/views/shared.js",
   "./js/views/trip.js",
   "./js/views/person.js",
   "./js/views/settings.js",

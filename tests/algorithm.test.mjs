@@ -143,6 +143,26 @@ test("Vorschläge sortieren nach Häufigkeit pro Person", () => {
   assert.equal(filtered[0].name, "Eier");
 });
 
+test("freie Auslage zählt zur Summe, erscheint aber nicht als Vorschlag", () => {
+  const s = state({
+    people: [{ id: "p1", name: "A", balance: 0 }],
+    products: [{ id: "milk", name: "Milch", lastPrice: 109 }],
+    trips: [
+      { id: "t1", date: "2026-06-01", orders: [
+        { personId: "p1", items: [
+          { id: "i1", productId: "milk", label: null, qty: 1, price: 109 },
+          { id: "i2", productId: null, label: "Konzertticket", qty: 1, price: 1800 },
+        ], paid: false, amountPaid: null },
+      ] },
+    ],
+  });
+  recomputeAllBalances(s);
+  assert.equal(s.people[0].balance, -(109 + 1800)); // schuldet Artikel + Auslage
+  const sugg = suggestProducts(s, "p1", "");
+  assert.equal(sugg.length, 1); // nur die Milch, nicht das Ticket
+  assert.equal(sugg[0].name, "Milch");
+});
+
 test("parseEuro versteht Komma, Punkt und Teilangaben", () => {
   assert.equal(parseEuro("1,49"), 149);
   assert.equal(parseEuro("1.49"), 149);

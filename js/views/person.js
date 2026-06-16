@@ -84,23 +84,25 @@ function historyList(s, personId) {
   rows.sort((a, b) => b.trip.date.localeCompare(a.trip.date));
 
   if (rows.length === 0) {
-    return h("p.muted", {}, "Noch keine Bestellungen.");
+    return h("p.muted", {}, "Noch keine Einträge.");
   }
 
   const list = h("ul.cardlist");
   for (const { trip, order } of rows) {
     const total = orderTotal(order);
     const settled = order.paid || order.amountPaid != null;
+    const n = order.items.length;
+    const meta = n === 0 ? euro(total) : `${n} Posten · ${euro(total)}`;
     list.append(
       h("li", {},
         h("div.card.histrow", {},
           h("span.histrow-cal", {}, icon("receipt", 20)),
           h("span.histrow-main", {},
             h("strong", {}, dateLabel(trip.date)),
-            h("span.muted", {}, `${order.items.length} Artikel · ${euro(total)}`)
+            h("span.muted", {}, meta)
           ),
           settled
-            ? h("span.badge.badge-done", {}, icon("check", 14), "bezahlt")
+            ? h("span.badge.badge-done", {}, icon("check", 14), "erhalten")
             : h("span.badge.badge-open", {}, "offen")
         )
       )

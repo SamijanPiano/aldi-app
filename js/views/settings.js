@@ -1,8 +1,9 @@
 // views/settings.js — Backup (Export/Import) und Personen-Übersicht.
 
 import { getState, exportData, importData } from "../store.js";
-import { euro, todayIso } from "../format.js";
+import { todayIso } from "../format.js";
 import { h, icon, navigate } from "../ui.js";
+import { balanceBadge } from "./shared.js";
 
 export function renderSettings() {
   const s = getState();
@@ -12,7 +13,7 @@ export function renderSettings() {
     h("header.appbar", {},
       h("button.iconbtn.ghost", { onclick: () => navigate("#/"), "aria-label": "Zurück" }, icon("back")),
       h("div.appbar-titles", {},
-        h("p.appbar-eyebrow", {}, "Aldi-Sammelbestellung"),
+        h("p.appbar-eyebrow", {}, "Saldo"),
         h("h1.appbar-title", {}, "Einstellungen")
       )
     )
@@ -36,7 +37,7 @@ export function renderSettings() {
   // --- Personen ---
   const peopleBody = h("div");
   if (s.people.length === 0) {
-    peopleBody.append(h("p.muted", {}, "Noch keine Personen. Sie entstehen, sobald du sie zu einer Fahrt hinzufügst."));
+    peopleBody.append(h("p.muted", {}, "Noch keine Personen. Sie entstehen, sobald du einen Eintrag für jemanden anlegst."));
   } else {
     const list = h("ul.cardlist");
     for (const p of [...s.people].sort((a, b) => a.name.localeCompare(b.name, "de"))) {
@@ -66,7 +67,7 @@ function doExport() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `aldi-backup-${todayIso()}.json`;
+  a.download = `saldo-backup-${todayIso()}.json`;
   document.body.append(a);
   a.click();
   a.remove();
@@ -111,11 +112,4 @@ function section(title, ...body) {
     h("h2.section-title", {}, title),
     ...body
   );
-}
-
-function balanceBadge(person) {
-  const b = person.balance;
-  if (b < 0) return h("span.badge.badge-debt", {}, `schuldet ${euro(-b)}`);
-  if (b > 0) return h("span.badge.badge-credit", {}, `${euro(b)} gut`);
-  return h("span.badge.badge-muted", {}, "ausgeglichen");
 }

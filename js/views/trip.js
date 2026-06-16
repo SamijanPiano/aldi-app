@@ -1,14 +1,16 @@
-// views/trip.js — das Cockpit einer Einkaufsfahrt: Personen, Artikel, Bezahlung.
+// views/trip.js — Sammeleinkauf: für mehrere Personen auf einmal. Pro Person
+// eine Karte mit Artikeln, Preisen und Bezahlung. Der Schnell-Eintrag für eine
+// einzelne Person liegt in entry.js; beide teilen sich shared.js.
 
 import {
-  getState, tripById, personById, productById,
-  addPerson, addPersonToTrip, removeOrder, removeTrip,
-  addItem, changeItemQty, setItemPrice, setPayment,
+  getState, tripById, personById,
+  addPerson, addPersonToTrip, removeOrder, removeTrip, addItem,
 } from "../store.js";
 import { orderTotal, orderLedger, suggestProducts } from "../algorithm.js";
-import { euro, euroPlain, parseEuro, dateLabel } from "../format.js";
+import { euro, dateLabel } from "../format.js";
 import { h, icon, navigate } from "../ui.js";
 import { autocompleteInput } from "./autocomplete.js";
+import { itemRow, paymentRow, initials, balanceBadge, balanceHint } from "./shared.js";
 
 // Welche "Artikel hinzufügen"-Eingabe nach dem nächsten Render fokussiert wird.
 let focusAddFor = null;
@@ -30,15 +32,15 @@ export function renderTrip(tripId) {
       {},
       h("button.iconbtn.ghost", { onclick: () => navigate("#/"), "aria-label": "Zurück" }, icon("back")),
       h("div.appbar-titles", {},
-        h("p.appbar-eyebrow", {}, "Einkaufsfahrt"),
+        h("p.appbar-eyebrow", {}, "Sammeleinkauf"),
         h("h1.appbar-title", {}, dateLabel(trip.date))
       ),
       h(
         "button.iconbtn.ghost.danger",
         {
-          "aria-label": "Fahrt löschen",
+          "aria-label": "Einkauf löschen",
           onclick: () => {
-            if (confirm("Diese Fahrt wirklich löschen?")) {
+            if (confirm("Diesen Einkauf wirklich löschen?")) {
               removeTrip(trip.id);
               navigate("#/");
             }
@@ -52,7 +54,7 @@ export function renderTrip(tripId) {
   if (trip.orders.length > 0) {
     view.append(
       h("div.trip-summary", {},
-        h("span.trip-summary-label", {}, "Summe diese Fahrt"),
+        h("span.trip-summary-label", {}, "Summe"),
         h("span.trip-summary-value", {}, euro(total))
       )
     );
@@ -96,9 +98,9 @@ function personCard(s, trip, order) {
       ),
       balanceBadge(person),
       h("button.iconbtn.ghost.tiny.danger",
-        { "aria-label": "Person aus Fahrt entfernen",
+        { "aria-label": "Person aus Einkauf entfernen",
           onclick: () => {
-            if (confirm(`${person.name} aus dieser Fahrt entfernen?`)) {
+            if (confirm(`${person.name} aus diesem Einkauf entfernen?`)) {
               removeOrder(trip.id, person.id);
             }
           } },
@@ -109,10 +111,10 @@ function personCard(s, trip, order) {
 
   const items = h("div.items");
   order.items.forEach((item) => {
-    items.append(itemRow(s, trip, person, item));
+    items.append(itemRow(s, trip.id, person, item));
   });
   if (order.items.length === 0) {
-    items.append(h("p.items-empty", {}, "Noch keine Artikel."));
+    items.append(h("p.items-empty", {}, "Noch nichts erfasst."));
   }
   card.append(items);
 
@@ -135,130 +137,8 @@ function personCard(s, trip, order) {
   ac.el.dataset.addFor = person.id;
   card.append(ac.el);
 
-  card.append(paymentRow(trip, person, order, ledger));
+  card.append(paymentRow(trip.id, person, order, ledger));
   return card;
-}
-
-function itemRow(s, trip, person, item) {
-  const prod = productById(item.productId, s);
-  const priceKnown = item.price != null;
-  const lineTotal = (item.price ?? 0) * item.qty;
-
-  const priceInput = h("input.price-input", {
-    type: "text",
-    inputmode: "decimal",
-    enterkeyhint: "done",
-    value: priceKnown ? euroPlain(item.price) : "",
-    placeholder: "Preis",
-    "aria-label": `Preis für ${prod?.name ?? "Artikel"}`,
-  });
-  priceInput.addEventListener("change", () => {
-    setItemPrice(trip.id, person.id, item.id, parseEuro(priceInput.value));
-  });
-
-  return h("div.itemrow", {},
-    h("div.itemrow-top", {},
-      h("span.itemrow-name", {}, prod?.name ?? "—"),
-      priceKnown
-        ? h("span.itemrow-line", {}, euro(lineTotal))
-        : h("span.itemrow-line.itemrow-missing", {}, "Preis fehlt")
-    ),
-    h("div.itemrow-bottom", {},
-      h("label.price-field", {},
-        priceInput,
-        h("span.price-cur", {}, "€")
-      ),
-      qtyStepper(trip, person, item, prod)
-    )
-  );
-}
-
-function qtyStepper(trip, person, item, prod) {
-  const qty = item.qty;
-  return h("div.stepper",
-    { role: "group", "aria-label": `Menge für ${prod?.name ?? "Artikel"}` },
-    h("button.stepper-btn",
-      { "aria-label": qty <= 1 ? "Artikel entfernen" : "Menge verringern",
-        onclick: () => changeItemQty(trip.id, person.id, item.id, -1) },
-      icon(qty <= 1 ? "trash" : "minus", 18)
-    ),
-    h("span.stepper-qty",
-      { role: "status", "aria-live": "polite", "aria-atomic": "true",
-        "aria-label": `Menge: ${qty}` },
-      String(qty)
-    ),
-    h("button.stepper-btn",
-      { "aria-label": "Menge erhöhen",
-        onclick: () => changeItemQty(trip.id, person.id, item.id, 1) },
-      icon("plus", 18)
-    )
-  );
-}
-
-// ---- Bezahlung -----------------------------------------------------------
-
-function paymentRow(trip, person, order, ledger) {
-  const settled = order.paid || order.amountPaid != null;
-  const status = paymentStatus(order, ledger);
-
-  const received = h("input.pay-input", {
-    type: "text",
-    inputmode: "decimal",
-    enterkeyhint: "done",
-    value: order.amountPaid != null ? euroPlain(order.amountPaid) : "",
-    placeholder: euroPlain(Math.max(ledger.expected, 0)),
-    "aria-label": "Erhaltener Betrag",
-  });
-  received.addEventListener("change", () => {
-    const cents = parseEuro(received.value);
-    setPayment(trip.id, person.id, {
-      amountPaid: cents,
-      paid: cents != null ? true : order.paid,
-    });
-  });
-
-  const toggle = h("button.paytoggle", {
-    class: settled ? "on" : undefined,
-    "aria-label": "Als bezahlt markieren",
-    "aria-pressed": settled ? "true" : "false",
-    onclick: () => {
-      if (settled) setPayment(trip.id, person.id, { paid: false, amountPaid: null });
-      else setPayment(trip.id, person.id, { paid: true });
-    },
-  }, icon("check", 18), settled ? "Bezahlt" : "Offen");
-
-  const carry = ledger.prevBalance !== 0
-    ? h("p.pay-carry", {},
-        ledger.prevBalance > 0
-          ? `${euro(ledger.prevBalance)} Guthaben verrechnet → `
-          : `${euro(-ledger.prevBalance)} Altschuld → `,
-        h("strong", {}, `zu zahlen ${euro(Math.max(ledger.expected, 0))}`))
-    : null;
-
-  return h("div.pay", {},
-    carry,
-    h("div.pay-controls", {},
-      h("label.pay-field", {},
-        h("span.pay-cur", {}, "€"),
-        received
-      ),
-      toggle
-    ),
-    h("div.pay-status", { class: `status-${status.kind}` },
-      h("span.status-dot", { "aria-hidden": "true" }),
-      status.text
-    )
-  );
-}
-
-function paymentStatus(order, ledger) {
-  if (order.amountPaid != null) {
-    if (ledger.diff > 0) return { kind: "over", text: `${euro(ledger.diff)} zu viel` };
-    if (ledger.diff < 0) return { kind: "under", text: `${euro(-ledger.diff)} zu wenig` };
-    return { kind: "ok", text: "Passt genau" };
-  }
-  if (order.paid) return { kind: "ok", text: "Bezahlt" };
-  return { kind: "open", text: "Offen" };
 }
 
 // ---- Person hinzufügen ---------------------------------------------------
@@ -269,7 +149,7 @@ function addPersonRow(s, trip) {
 
   const ac = autocompleteInput({
     placeholder: "Person hinzufügen …",
-    ariaLabel: "Person zur Fahrt hinzufügen",
+    ariaLabel: "Person zum Einkauf hinzufügen",
     listLabel: "Personen-Vorschläge",
     getSuggestions: (q) =>
       available
@@ -286,24 +166,4 @@ function addPersonRow(s, trip) {
     h("span.addperson-icon", {}, icon("user", 20)),
     ac.el
   );
-}
-
-// ---- kleine Helfer -------------------------------------------------------
-
-function balanceBadge(person) {
-  const b = person.balance;
-  if (b < 0) return h("span.badge.badge-debt", {}, `schuldet ${euro(-b)}`);
-  if (b > 0) return h("span.badge.badge-credit", {}, `${euro(b)} gut`);
-  return h("span.badge.badge-muted", {}, "ausgeglichen");
-}
-
-function balanceHint(person) {
-  const b = person.balance;
-  if (b < 0) return `schuldet ${euro(-b)}`;
-  if (b > 0) return `${euro(b)} gut`;
-  return undefined;
-}
-
-function initials(name) {
-  return name.trim().slice(0, 2).toUpperCase() || "?";
 }

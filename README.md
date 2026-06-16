@@ -1,27 +1,33 @@
-# Aldi-Sammelbestellung
+# Saldo
 
-Eine kleine, schöne PWA, um Sammeleinkäufe bei Aldi zu organisieren: Personen,
-Artikel mit Häufigkeits-Vorschlägen, gemerkten Preisen und einem laufenden
-Saldo pro Person (Über-/Unterzahlungen werden automatisch verrechnet).
+Eine kleine, ruhige PWA, um festzuhalten, was du für andere ausgelegt hast –
+egal ob Einkauf, Konzertticket oder ausgelegtes Mittagessen. Sie führt einen
+laufenden Saldo pro Person, sodass du jederzeit siehst, **wer dir noch was
+schuldet** (und was du selbst schuldest). Über-/Unterzahlungen werden
+automatisch mit dem nächsten Eintrag verrechnet.
 
 Gebaut **ohne Bundler und ohne Abhängigkeiten** — reines HTML/CSS/JS. Läuft
 offline, lässt sich aufs iPhone legen und funktioniert in Jahren noch.
 
 ## Funktionen
 
-- **Einkaufsfahrten** mit Datum, je Fahrt mehrere Personen.
-- **Vorschläge beim Tippen**: häufigste Artikel der Person zuerst, mit
-  gemerktem Preis (zuletzt gezahlter Preis gilt).
-- **Mengen** per +/– pro Artikelzeile.
-- **Bezahlung**: „Bezahlt"-Häkchen oder erhaltenen Betrag eintippen → zeigt
+- **Übersicht als Kontostand**: oben die Summe, die dir geschuldet wird,
+  darunter alle Personen nach Saldo sortiert (wer dir am meisten schuldet zuerst).
+- **Schneller Eintrag** für eine Person: **Artikel** (mit Vorschlägen nach
+  Häufigkeit und gemerktem Preis) oder **Betrag** (einmalige Auslage mit freiem
+  Text, z. B. „Konzertticket").
+- **Mehrere auf einmal**: ein Sammeleinkauf für mehrere Personen in einem Rutsch.
+- **Mengen** per +/– pro Zeile.
+- **Bezahlung**: „Erhalten"-Häkchen oder erhaltenen Betrag eintippen → zeigt
   sofort „passt genau", „zu viel" oder „zu wenig".
-- **Laufender Saldo pro Person**: Guthaben/Schuld wird beim nächsten Einkauf
+- **Laufender Saldo pro Person**: Guthaben/Schuld wird beim nächsten Eintrag
   verrechnet.
 - **Backup**: Daten als Datei sichern und wiederherstellen (z. B. in iCloud).
 - Hell- und Dunkelmodus, vollständig auf Deutsch.
 
 Alle Daten liegen **nur lokal** im Browser (localStorage). Kein Konto, keine
-Cloud, kein Tracking.
+Cloud, kein Tracking. Beim ersten Start wird ein vorhandener Datenstand der
+früheren Aldi-Version automatisch übernommen.
 
 ## Lokal ansehen (am Mac)
 
@@ -40,14 +46,15 @@ cd "Aldi App"
 node --test
 ```
 
-Geprüft werden Saldo-Verrechnung, Häufigkeits-Vorschläge und Preis-Parsing.
+Geprüft werden Saldo-Verrechnung, Häufigkeits-Vorschläge, freie Auslagen und
+Preis-Parsing.
 
 ## Aufs iPhone bringen (als App-Icon)
 
 Damit die App als Icon auf dem Home-Bildschirm liegt und offline läuft,
 braucht sie eine Web-Adresse. Der einfachste kostenlose Weg:
 
-1. Den Ordner `Aldi App` auf einen statischen Host laden — z. B.
+1. Den Projektordner auf einen statischen Host laden — z. B.
    [Netlify Drop](https://app.netlify.com/drop) (Ordner einfach reinziehen)
    oder GitHub Pages.
 2. Die erhaltene URL in **Safari auf dem iPhone** öffnen.
@@ -71,7 +78,14 @@ js/
   algorithm.js          Vorschläge + Saldo-Logik (das Herzstück)
   format.js             Geld-/Datumsformatierung
   ui.js                 DOM-Helfer + Icons
-  views/                Bildschirme (trips, trip, person, settings, autocomplete)
+  views/
+    overview.js         Startseite: Kontostand-Übersicht
+    entry.js            Schnell-Eintrag (eine Person)
+    trip.js             Sammeleinkauf (mehrere Personen)
+    person.js           Personen-Detail (Saldo, Verlauf)
+    settings.js         Backup + Personen
+    shared.js           geteilte Bausteine (Artikelzeile, Bezahlung)
+    autocomplete.js     Tipp-mit-Vorschlägen-Eingabe
 tests/                  node:test
 icons/                  App-Icons
 ```

@@ -6,15 +6,20 @@
 //             balance > 0  -> Guthaben (du schuldest der Person Geld)
 //             balance < 0  -> die Person schuldet dir Geld
 //   product : { id, name, lastPrice }   // zuletzt gezahlter Preis in Cent
-//   trip    : { id, date, orders: [order] }
+//   trip    : { id, date, orders: [order] }   // ein Einkauf/Eintrag, 1..n Personen
 //   order   : { personId, items: [item], paid, amountPaid }
 //             amountPaid = tatsächlich erhaltener Betrag in Cent (oder null)
-//   item    : { productId, qty, price }  // price = Stückpreis in Cent
+//   item    : { productId, label, qty, price }   // price = Stückpreis in Cent
+//             productId gesetzt -> wiederkehrender Artikel (Vorschläge + Preisgedächtnis)
+//             label gesetzt     -> einmalige Auslage ("Konzertticket"), kein Produkt
 
 import { recomputeAllBalances } from "./algorithm.js";
 import { todayIso } from "./format.js";
 
-const STORAGE_KEY = "aldi-app-v1";
+const STORAGE_KEY = "saldo-app-v1";
+// Frühere Schlüssel: werden beim ersten Start einmalig übernommen, damit beim
+// Umstieg von der Aldi-Version keine Daten verloren gehen.
+const LEGACY_KEYS = ["aldi-app-v1"];
 const SCHEMA_VERSION = 1;
 const MAX_ENTITIES = 20000; // Obergrenze gegen riesige/böswillige Backups
 
@@ -22,13 +27,33 @@ const listeners = new Set();
 
 let state = load();
 
+// Salden direkt aus den Bestellungen neu berechnen – unabhängig davon, welche
+// (ggf. importierten oder alten) Werte gespeichert waren. Single Source of Truth.
+recomputeAllBalances(state);
+
+// Falls aus dem Alt-Speicher übernommen: einmalig unter dem neuen Schlüssel
+// sichern, damit die Daten auch ohne weitere Änderung erhalten bleiben.
+if (!localStorage.getItem(STORAGE_KEY) && (state.people.length || state.trips.length)) {
+  persist();
+}
+
 function emptyState() {
   return { version: SCHEMA_VERSION, people: [], products: [], trips: [] };
 }
 
 function load() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    let raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      // Beim ersten Start unter neuem Schlüssel: Alt-Speicher übernehmen.
+      for (const k of LEGACY_KEYS) {
+        const legacy = localStorage.getItem(k);
+        if (legacy) {
+          raw = legacy;
+          break;
+        }
+      }
+    }
     if (!raw) return emptyState();
     const parsed = JSON.parse(raw);
     return migrate(parsed);
@@ -79,11 +104,14 @@ function sanitizeProduct(p) {
 function sanitizeItem(it) {
   if (!it || typeof it !== "object") return null;
   const productId = str(it.productId);
-  if (!productId) return null;
+  const label = str(it.label).trim();
+  // Entweder ein Produkt-Verweis ODER eine freie Auslage muss vorhanden sein.
+  if (!productId && !label) return null;
   const qty = int(it.qty);
   return {
     id: str(it.id) || uid("i"),
-    productId,
+    productId: productId || null,
+    label: label || null,
     qty: qty && qty > 0 ? qty : 1,
     price: int(it.price), // null = Preis unbekannt
   };
@@ -225,6 +253,16 @@ export function removeTrip(id) {
   });
 }
 
+/** Ändert das Datum eines Einkaufs/Eintrags (YYYY-MM-DD). */
+export function setTripDate(id, dateIso) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateIso)) return;
+  commit((s) => {
+    const t = tripById(id, s);
+    if (t) t.date = dateIso;
+    return s;
+  });
+}
+
 /** Fügt einer Fahrt eine Person hinzu (leere Bestellung). */
 export function addPersonToTrip(tripId, personId) {
   commit((s) => {
@@ -245,7 +283,7 @@ export function removeOrder(tripId, personId) {
   });
 }
 
-/** Fügt einer Bestellung einen Artikel hinzu (legt Produkt bei Bedarf an). */
+/** Fügt einer Bestellung einen wiederkehrenden Artikel hinzu (legt Produkt bei Bedarf an). */
 export function addItem(tripId, personId, name, priceCents, qty = 1) {
   commit((s) => {
     const t = tripById(tripId, s);
@@ -254,7 +292,22 @@ export function addItem(tripId, personId, name, priceCents, qty = 1) {
     const prod = ensureProduct(s, name);
     const price = priceCents ?? prod.lastPrice ?? null;
     if (price != null) prod.lastPrice = price;
-    order.items.push({ id: uid("i"), productId: prod.id, qty, price });
+    order.items.push({ id: uid("i"), productId: prod.id, label: null, qty, price });
+    return s;
+  });
+}
+
+/**
+ * Fügt einer Bestellung eine einmalige Auslage hinzu (freier Text + Betrag,
+ * ohne Produkt – taucht nicht in den Vorschlägen auf, kein Preisgedächtnis).
+ */
+export function addFreeItem(tripId, personId, label, priceCents, qty = 1) {
+  const text = label.trim();
+  if (!text) return;
+  commit((s) => {
+    const order = tripById(tripId, s)?.orders.find((o) => o.personId === personId);
+    if (!order) return s;
+    order.items.push({ id: uid("i"), productId: null, label: text, qty, price: priceCents ?? null });
     return s;
   });
 }

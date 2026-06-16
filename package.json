@@ -1,9 +1,9 @@
 {
-  "name": "aldi-sammelbestellung",
-  "version": "1.0.0",
+  "name": "saldo",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "Build-freie PWA für Aldi-Sammelbestellungen. Kein Bundler, keine Abhängigkeiten — type:module markiert nur ES-Module und erlaubt node-Tests.",
+  "description": "Build-freie PWA, um festzuhalten, was du für andere ausgelegt hast – mit laufendem Saldo. Kein Bundler, keine Abhängigkeiten — type:module markiert nur ES-Module und erlaubt node-Tests.",
   "scripts": {
     "test": "node --test"
   }
