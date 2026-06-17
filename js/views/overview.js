@@ -77,12 +77,15 @@ function actions() {
       icon("plus", 20),
       h("span", {}, "Eintrag")
     ),
-    h("button.linkbtn", {
+    h("button.action-secondary", {
       onclick: () => {
         const id = addTrip(todayIso());
         navigate(`#/trip/${id}`);
       },
-    }, "Mehrere auf einmal")
+    }, icon("user", 20), h("span", {}, "Mehrere auf einmal")),
+    h("button.action-secondary", {
+      onclick: () => navigate("#/shopping"),
+    }, icon("list", 20), h("span", {}, "Einkaufsliste"))
   );
 }
 

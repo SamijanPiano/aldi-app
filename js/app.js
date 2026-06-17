@@ -8,6 +8,7 @@ import { renderEntry } from "./views/entry.js";
 import { renderTrip } from "./views/trip.js";
 import { renderPerson } from "./views/person.js";
 import { renderSettings } from "./views/settings.js";
+import { renderShopping } from "./views/shopping.js";
 
 const root = document.getElementById("app");
 let currentKey = null;
@@ -19,6 +20,7 @@ function parseRoute() {
   if (parts[0] === "trip" && parts[1]) return { name: "trip", id: parts[1] };
   if (parts[0] === "person" && parts[1]) return { name: "person", id: parts[1] };
   if (parts[0] === "settings") return { name: "settings", id: null };
+  if (parts[0] === "shopping") return { name: "shopping", id: null };
   return { name: "overview", id: null };
 }
 
@@ -28,6 +30,7 @@ function viewFor(route) {
     case "trip": return renderTrip(route.id);
     case "person": return renderPerson(route.id);
     case "settings": return renderSettings();
+    case "shopping": return renderShopping();
     default: return renderOverview();
   }
 }

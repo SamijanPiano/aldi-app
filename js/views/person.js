@@ -1,9 +1,10 @@
 // views/person.js — Personen-Detail: Saldo, typische Artikel, Bestellverlauf.
 
 import { getState, personById, renamePerson, removePerson } from "../store.js";
-import { orderTotal, typicalProducts } from "../algorithm.js";
+import { orderTotal, orderLedger } from "../algorithm.js";
 import { euro, dateLabel } from "../format.js";
 import { h, icon, navigate } from "../ui.js";
+import { paymentRow } from "./shared.js";
 
 export function renderPerson(personId) {
   const s = getState();
@@ -31,19 +32,32 @@ export function renderPerson(personId) {
 
   view.append(balancePanel(person));
 
-  const typical = typicalProducts(s, person.id);
-  if (typical.length > 0) {
-    const chips = h("div.chips");
-    for (const p of typical) {
-      chips.append(
-        h("span.chip", {},
-          h("span.chip-name", {}, p.name),
-          p.lastPrice != null ? h("span.chip-price", {}, euro(p.lastPrice)) : null,
-          h("span.chip-count", {}, `${p.count}×`)
+  // Offene Bestellungen mit Zahlungs-UI
+  const openOrders = [];
+  for (const trip of s.trips) {
+    const order = trip.orders.find(
+      (o) => o.personId === person.id && !o.paid && o.amountPaid == null && o.items.length > 0
+    );
+    if (order) openOrders.push({ trip, order });
+  }
+  openOrders.sort((a, b) => b.trip.date.localeCompare(a.trip.date));
+
+  if (openOrders.length > 0) {
+    const stack = h("div.stack");
+    for (const { trip, order } of openOrders) {
+      const ledger = orderLedger(s, trip.id, person.id);
+      const n = order.items.length;
+      stack.append(
+        h("div.card.open-order", {},
+          h("div.open-order-head", {},
+            h("strong", {}, dateLabel(trip.date)),
+            h("span.muted", {}, `${n} Posten · ${euro(orderTotal(order))}`)
+          ),
+          paymentRow(trip.id, person, order, ledger)
         )
       );
     }
-    view.append(section("Typische Artikel", chips));
+    view.append(section("Zahlung", stack));
   }
 
   view.append(section("Verlauf", historyList(s, person.id)));

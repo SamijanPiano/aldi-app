@@ -215,6 +215,21 @@ input { font-family: inherit; }
   transition: transform var(--dur) var(--ease), opacity var(--dur);
 }
 .action-primary:active { transform: scale(0.985); opacity: 0.92; }
+.action-secondary {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%;
+  padding: 14px 20px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-base);
+  font-weight: 620;
+  letter-spacing: -0.01em;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur) var(--ease), background var(--dur);
+}
+.action-secondary:active { transform: scale(0.985); background: var(--surface-sunk); }
 .linkbtn {
   padding: 8px 12px;
   border: none; background: none;
@@ -601,6 +616,53 @@ input { font-family: inherit; }
 }
 .empty h2 { margin: 0 0 8px; font-size: var(--text-xl); font-weight: 700; letter-spacing: -0.02em; }
 .empty p { margin: 0 auto; max-width: 32ch; color: var(--ink-soft); }
+
+/* ---- Einkaufsliste ---- */
+.shopping-person { padding: 0; overflow: hidden; }
+.shopping-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.shopping-person-name { font-size: var(--text-lg); font-weight: 680; flex: 1; }
+.shopping-items { display: flex; flex-direction: column; }
+.shopping-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  border: none; background: transparent;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: var(--text-base); color: var(--ink); text-align: left; width: 100%;
+  transition: background var(--dur);
+}
+.shopping-item:last-child { border-bottom: none; }
+.shopping-item:active { background: var(--surface-sunk); }
+.shopping-item.done { opacity: 0.45; }
+.shopping-item.done .shopping-item-name { text-decoration: line-through; }
+.shopping-check {
+  display: grid; place-items: center;
+  width: 26px; height: 26px; flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: var(--surface-sunk);
+  color: var(--pos);
+  transition: background var(--dur), border-color var(--dur);
+}
+.shopping-item.done .shopping-check { background: var(--pos); border-color: var(--pos); color: var(--ink-contrast); }
+.shopping-item-name { flex: 1; }
+.shopping-item-qty { color: var(--ink-faint); font-size: var(--text-sm); font-weight: 620; font-variant-numeric: tabular-nums; }
+.shopping-item-bakery { color: var(--neg); font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; }
+.shopping-reset {
+  margin: 20px auto 8px; display: block;
+  border: none; background: none;
+  color: var(--ink-faint); font-size: var(--text-sm); font-weight: 560;
+}
+
+/* ---- Zahlung in Personenansicht ---- */
+.open-order { padding: 0; overflow: hidden; }
+.open-order-head { display: flex; align-items: baseline; gap: 8px; padding: 12px 16px 0; }
+.open-order-head strong { font-weight: 680; }
+.open-order-head .muted { font-size: var(--text-sm); }
+.open-order .pay { padding: 12px 16px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
