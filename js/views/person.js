@@ -95,7 +95,10 @@ function historyList(s, personId) {
     const meta = n === 0 ? euro(total) : `${n} Posten · ${euro(total)}`;
     list.append(
       h("li", {},
-        h("div.card.histrow", {},
+        h("button.card.histrow", {
+          onclick: () => navigate(`#/trip/${trip.id}`),
+          "aria-label": `Einkauf vom ${dateLabel(trip.date)} öffnen`,
+        },
           h("span.histrow-cal", {}, icon("receipt", 20)),
           h("span.histrow-main", {},
             h("strong", {}, dateLabel(trip.date)),

@@ -14,15 +14,17 @@ import { autocompleteInput } from "./autocomplete.js";
 import { itemRow, paymentRow, initials } from "./shared.js";
 
 // Transienter Zustand über Re-Renders hinweg (wie focusAddFor in trip.js).
-let entry = null;   // { tripId, personId } sobald eine Person gewählt ist
-let mode = "item";  // "item" | "amount"
+let entry = null;      // { tripId, personId } sobald eine Person gewählt ist
+let mode = "item";     // "item" | "amount"
 let focusAdd = false;
+let isResuming = false; // true wenn eine bestehende offene Bestellung weitergeführt wird
 
 /** Vom „Eintrag"-Button der Übersicht: immer frisch beginnen. */
 export function beginEntry() {
   cleanupIfEmpty();
   entry = null;
   mode = "item";
+  isResuming = false;
 }
 
 function cleanupIfEmpty() {
@@ -36,12 +38,14 @@ function cleanupIfEmpty() {
 function leave() {
   cleanupIfEmpty();
   mode = "item";
+  isResuming = false;
   navigate("#/");
 }
 
 function done() {
   entry = null;
   mode = "item";
+  isResuming = false;
   navigate("#/");
 }
 
@@ -55,7 +59,7 @@ export function renderEntry() {
   view.append(
     h("header.appbar", {},
       h("button.iconbtn.ghost", { onclick: leave, "aria-label": "Zurück" }, icon("back")),
-      h("div.appbar-titles", {}, h("h1.appbar-title", {}, "Neuer Eintrag"))
+      h("div.appbar-titles", {}, h("h1.appbar-title", {}, isResuming ? "Bestellung bearbeiten" : "Neuer Eintrag"))
     )
   );
 
@@ -79,7 +83,31 @@ function personPicker(s) {
     createLabel: (q) => `„${q}“ neu anlegen`,
     onPick: ({ name, id, isNew }) => {
       const pid = isNew || !id ? addPerson(name) : id;
-      const tid = addTrip(todayIso());
+      const today = todayIso();
+
+      // Für bestehende Personen: offene Bestellung von heute weitermachen statt
+      // einen neuen Trip anzulegen. Verhindert doppelte Einträge am gleichen Tag.
+      if (!isNew && id) {
+        const s = getState();
+        let resumed = null;
+        for (let i = s.trips.length - 1; i >= 0; i--) {
+          const t = s.trips[i];
+          if (t.date !== today) continue;
+          const ord = t.orders.find((o) => o.personId === pid && !o.paid && o.amountPaid == null);
+          if (ord) { resumed = t; break; }
+        }
+        if (resumed) {
+          entry = { tripId: resumed.id, personId: pid };
+          mode = "item";
+          focusAdd = true;
+          isResuming = true;
+          rerender();
+          return;
+        }
+      }
+
+      isResuming = false;
+      const tid = addTrip(today);
       entry = { tripId: tid, personId: pid };
       mode = "item";
       focusAdd = true;

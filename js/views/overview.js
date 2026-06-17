@@ -128,7 +128,10 @@ function subline(s, personId) {
   const items = latest.order.items;
   if (items.length === 0) return dateLabel(latest.trip.date);
 
-  const names = items.slice(0, 3).map((it) => itemName(s, it));
+  const names = items.slice(0, 3).map((it) => {
+    const name = itemName(s, it);
+    return it.qty > 1 ? `${name} ×${it.qty}` : name;
+  });
   let text = names.join(", ");
   if (items.length > 3) text += " …";
   return text;
