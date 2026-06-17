@@ -1,7 +1,7 @@
 // sw.js — einfacher Offline-Cache (App-Shell). Statische Dateien werden
 // gecacht; bei Updates die Versionsnummer erhöhen.
 
-const CACHE = "saldo-app-v3";
+const CACHE = "saldo-app-v4";
 const ASSETS = [
   "./",
   "./index.html",

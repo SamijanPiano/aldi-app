@@ -54,7 +54,7 @@ export function renderShopping() {
       h("div.empty", {},
         h("span.empty-icon", {}, icon("list", 38)),
         h("h2", {}, "Keine offenen Bestellungen"),
-        h("p", {}, "Tippe auf der Startseite auf „Eintrag", um Bestellungen zu erfassen.")
+        h("p", {}, `Tippe auf der Startseite auf „Eintrag“, um Bestellungen zu erfassen.`)
       )
     );
     return view;
