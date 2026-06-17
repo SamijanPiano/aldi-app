@@ -1,12 +1,20 @@
-// views/overview.js — Startseite: Kontostand-Übersicht. Oben die Summe, die
-// dir geschuldet wird, darunter die Personen nach Saldo sortiert (wer dir am
-// meisten schuldet zuerst). Primäraktion: ein neuer Eintrag.
+// views/overview.js — Startseite: zwei Tabs.
+//   "Personen" → Kontostand-Übersicht (Standardansicht)
+//   "Heute"    → Alle Einkäufe des heutigen Tages, nach Person gegliedert
 
-import { getState, addTrip } from "../store.js";
+import { getState, addTrip, personById } from "../store.js";
+import { orderTotal } from "../algorithm.js";
 import { euro, todayIso, dateLabel } from "../format.js";
 import { h, icon, navigate } from "../ui.js";
 import { initials, itemName } from "./shared.js";
 import { beginEntry } from "./entry.js";
+
+// Transient: welcher Tab gerade aktiv ist.
+let activeTab = "people"; // "people" | "day"
+
+function rerender() {
+  window.dispatchEvent(new HashChangeEvent("hashchange"));
+}
 
 export function renderOverview() {
   const s = getState();
@@ -24,22 +32,111 @@ export function renderOverview() {
 
   view.append(summaryCard(s));
   view.append(actions());
+  view.append(tabBar());
 
-  const people = peopleWithActivity(s).sort(
-    (a, b) => a.balance - b.balance || a.name.localeCompare(b.name, "de")
-  );
+  if (activeTab === "day") {
+    view.append(dayView(s));
+  } else {
+    const people = peopleWithActivity(s).sort(
+      (a, b) => a.balance - b.balance || a.name.localeCompare(b.name, "de")
+    );
 
-  if (people.length === 0) {
-    view.append(emptyState());
-    return view;
+    if (people.length === 0) {
+      view.append(emptyState());
+    } else {
+      view.append(h("h2.section-title.overview-heading", {}, "Personen"));
+      const list = h("ul.cardlist");
+      for (const p of people) list.append(balanceRow(s, p));
+      view.append(list);
+    }
   }
 
-  view.append(h("h2.section-title.overview-heading", {}, "Personen"));
-  const list = h("ul.cardlist");
-  for (const p of people) list.append(balanceRow(s, p));
-  view.append(list);
-
   return view;
+}
+
+// ---- Tab-Leiste ----------------------------------------------------------
+
+function tabBar() {
+  const tab = (id, label) =>
+    h("button.segmented-btn", {
+      class: activeTab === id ? "on" : undefined,
+      "aria-pressed": activeTab === id ? "true" : "false",
+      onclick: () => { activeTab = id; rerender(); },
+    }, label);
+  return h("div.segmented.overview-tabs", { role: "group", "aria-label": "Ansicht wechseln" },
+    tab("people", "Personen"),
+    tab("day", "Heute")
+  );
+}
+
+// ---- Tagesansicht --------------------------------------------------------
+
+function dayView(s) {
+  const today = todayIso();
+
+  // Alle Bestellungen mit Artikeln von heute sammeln
+  const entries = [];
+  for (const trip of s.trips) {
+    if (trip.date !== today) continue;
+    for (const order of trip.orders) {
+      if (order.items.length === 0) continue;
+      const person = personById(order.personId, s);
+      if (!person) continue;
+      entries.push({ order, person });
+    }
+  }
+
+  if (entries.length === 0) {
+    return h("div.empty", {},
+      h("span.empty-icon", {}, icon("calendar", 38)),
+      h("h2", {}, "Noch nichts für heute"),
+      h("p", {}, `Tippe auf „Eintrag", um den ersten Kauf des Tages zu erfassen.`)
+    );
+  }
+
+  // Nach Person gruppieren (Reihenfolge: erste Bestellung der Person)
+  const byPerson = new Map();
+  for (const { order, person } of entries) {
+    if (!byPerson.has(person.id)) byPerson.set(person.id, { person, items: [], total: 0 });
+    const g = byPerson.get(person.id);
+    g.items.push(...order.items);
+    g.total += orderTotal(order);
+  }
+
+  const wrap = h("div");
+  wrap.append(h("h2.section-title.overview-heading", {}, dateLabel(today)));
+
+  const list = h("ul.cardlist");
+  for (const { person, items, total } of byPerson.values()) {
+    list.append(h("li", {},
+      h("button.card.balrow", {
+        onclick: () => navigate(`#/person/${person.id}`),
+        "aria-label": `${person.name} öffnen`,
+      },
+        h("span.avatar", { "aria-hidden": "true" }, initials(person.name)),
+        h("span.balrow-main", {},
+          h("span.balrow-name", {}, person.name),
+          h("span.balrow-sub", {}, daySubline(s, items))
+        ),
+        h("span.balrow-amount", {},
+          h("span.balrow-value.amt-pos", {}, euro(total))
+        )
+      )
+    ));
+  }
+  wrap.append(list);
+  return wrap;
+}
+
+/** Bis zu 3 Artikel als Kurzzeile. */
+function daySubline(s, items) {
+  const names = items.slice(0, 3).map((it) => {
+    const name = itemName(s, it);
+    return it.qty > 1 ? `${name} ×${it.qty}` : name;
+  });
+  let text = names.join(", ");
+  if (items.length > 3) text += " …";
+  return text;
 }
 
 // ---- Summe oben ----------------------------------------------------------
@@ -89,7 +186,7 @@ function actions() {
   );
 }
 
-// ---- Personenzeile -------------------------------------------------------
+// ---- Personenzeile (Personen-Tab) ----------------------------------------
 
 function balanceRow(s, person) {
   const b = person.balance;
@@ -155,6 +252,6 @@ function emptyState() {
   return h("div.empty", {},
     h("span.empty-icon", {}, icon("receipt", 38)),
     h("h2", {}, "Noch nichts erfasst"),
-    h("p", {}, "Tippe auf „Eintrag“, sobald du das nächste Mal etwas für jemanden auslegst.")
+    h("p", {}, `Tippe auf „Eintrag“, sobald du das nächste Mal etwas für jemanden auslegst.`)
   );
 }
